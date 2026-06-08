@@ -11,11 +11,6 @@ export function formatPrice(value, type) {
   return type === 'aluguel' ? `${formatted}/mês` : formatted;
 }
 
-export function getGoogleMapsUrl(cep, neighborhood, city) {
-  const query = encodeURIComponent(cep || `${neighborhood}, ${city}`);
-  return `https://www.google.com/maps?q=${query}&output=embed`;
-}
-
 export function generatePropertyUrl(id) {
   return `/imovel/${id}`;
 }

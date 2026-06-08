@@ -1,23 +1,24 @@
 import { useState } from 'react';
-import { Lock, Unlock } from 'lucide-react';
+import { Lock, Unlock, Loader2 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 
-const adminPasscode = import.meta.env.VITE_ADMIN_PASSCODE || '1234';
-
 export default function AdminLogin() {
-  const { setIsAdminAuthenticated } = useApp();
+  const { handleLogin } = useApp();
   const [passcodeInput, setPasscodeInput] = useState('');
   const [passcodeError, setPasscodeError] = useState('');
+  const [loading, setLoading] = useState(false);
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    if (passcodeInput === adminPasscode) {
-      setIsAdminAuthenticated(true);
-      try { localStorage.setItem('broker_admin_auth', 'true'); } catch { /* ignore */ }
-      setPasscodeError('');
+    setLoading(true);
+    setPasscodeError('');
+    try {
+      await handleLogin(passcodeInput);
       setPasscodeInput('');
-    } else {
-      setPasscodeError('Código de acesso incorreto.');
+    } catch (err) {
+      setPasscodeError(err.message || 'Código de acesso incorreto.');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -55,9 +56,11 @@ export default function AdminLogin() {
 
         <button
           type="submit"
-          className="w-full py-3.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-sm rounded-xl transition-colors shadow-lg shadow-indigo-100 flex items-center justify-center gap-2"
+          disabled={loading}
+          className="w-full py-3.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-sm rounded-xl transition-colors shadow-lg shadow-indigo-100 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          <Unlock className="w-4 h-4" /> Entrar no Painel
+          {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Unlock className="w-4 h-4" />}
+          {loading ? 'Entrando...' : 'Entrar no Painel'}
         </button>
       </form>
     </div>

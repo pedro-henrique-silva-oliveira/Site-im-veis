@@ -1,10 +1,13 @@
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { ImageOff } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { formatPrice, generatePropertyUrl } from '../utils/formatters';
 
 export default function RelatedProperties({ currentProperty, limit = 3 }) {
   const { properties } = useApp();
   const navigate = useNavigate();
+  const [failedImgs, setFailedImgs] = useState([]);
 
   const related = properties
     .filter(p => p.id !== currentProperty.id)
@@ -24,11 +27,18 @@ export default function RelatedProperties({ currentProperty, limit = 3 }) {
             className="group bg-white rounded-xl overflow-hidden border border-slate-200 cursor-pointer hover:shadow-lg transition-all"
           >
             <div className="h-40 overflow-hidden bg-slate-100">
-              <img
-                src={property.images?.[0] || "https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=400&q=80"}
-                alt={property.title}
-                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-              />
+              {failedImgs.includes(property.id) ? (
+                <div className="w-full h-full flex items-center justify-center bg-slate-200">
+                  <ImageOff className="w-8 h-8 text-slate-400" />
+                </div>
+              ) : (
+                <img
+                  src={property.images?.[0] || "https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=400&q=80"}
+                  alt={property.title}
+                  onError={() => setFailedImgs(prev => [...prev, property.id])}
+                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                />
+              )}
             </div>
             <div className="p-4">
               <span className={`inline-block px-2 py-0.5 text-[10px] font-bold rounded uppercase tracking-wider mb-1.5 ${

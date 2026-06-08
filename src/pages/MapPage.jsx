@@ -1,7 +1,7 @@
 import { useEffect, useState, useRef } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
-import { ArrowLeft, Loader2, ExternalLink, AlertCircle } from 'lucide-react';
+import { ArrowLeft, Loader2, AlertCircle, ChevronRight, ChevronLeft, Eye } from 'lucide-react';
 import { Helmet } from 'react-helmet-async';
 import { useApp } from '../context/AppContext';
 import { formatPrice, generatePropertyUrl, geocodeProperty } from '../utils/formatters';
@@ -19,6 +19,8 @@ export default function MapPage() {
   const { properties, setProperties } = useApp();
   const [geocoding, setGeocoding] = useState(false);
   const [geocodeError, setGeocodeError] = useState(null);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const navigate = useNavigate();
   const running = useRef(false);
 
   const withCoords = properties.filter(p => p.lat && p.lng);
@@ -28,26 +30,32 @@ export default function MapPage() {
     if (withoutCoords.length === 0 || running.current) return;
     running.current = true;
 
-    setTimeout(() => {
+    let cancelled = false;
+    const timer = setTimeout(() => {
       setGeocoding(true);
       let idx = 0;
+
       const next = () => {
-        if (idx >= withoutCoords.length) { setGeocoding(false); return; }
+        if (cancelled || idx >= withoutCoords.length) { setGeocoding(false); return; }
         const p = withoutCoords[idx++];
         geocodeProperty(p)
           .then(({ lat, lng }) => {
+            if (cancelled) return;
             setProperties(prev => prev.map(prop =>
               prop.id === p.id ? { ...prop, lat, lng } : prop
             ));
           })
           .catch(err => {
+            if (cancelled) return;
             console.warn('Falha ao geocodificar CEP', p.cep, err?.message || err);
-            if (!geocodeError) setGeocodeError(`Alguns CEPs não puderam ser localizados. Clique no link "Mapa" ao lado do imóvel para abrir no Google Maps.`);
+            if (!geocodeError) setGeocodeError(`Alguns CEPs não puderam ser localizados.`);
           })
-          .finally(() => setTimeout(next, 300));
+          .finally(() => { if (!cancelled) setTimeout(next, 300); });
       };
       next();
     }, 0);
+
+    return () => { cancelled = true; clearTimeout(timer); };
     /* eslint-disable-next-line react-hooks/exhaustive-deps */
   }, []);
 
@@ -66,7 +74,7 @@ export default function MapPage() {
       </Helmet>
 
       <div className="relative">
-        <div className="absolute top-4 left-4 z-[1000] flex items-start gap-3">
+        <div className="absolute top-4 left-16 z-[1000] flex items-start gap-3">
           <Link to="/"
             className="flex items-center gap-2 px-4 py-2.5 bg-white/95 backdrop-blur-sm text-slate-700 font-bold text-sm rounded-xl shadow-lg border border-slate-200 hover:bg-white transition-colors"
           >
@@ -83,57 +91,60 @@ export default function MapPage() {
         </div>
 
         {geocoding && (
-          <div className="absolute top-20 left-4 z-[1000] bg-white/95 backdrop-blur-sm rounded-xl shadow-lg border border-slate-200 px-4 py-3 flex items-center gap-3 shadow-sm">
+          <div className="absolute top-20 left-16 z-[1000] bg-white/95 backdrop-blur-sm rounded-xl shadow-lg border border-slate-200 px-4 py-3 flex items-center gap-3 shadow-sm">
             <Loader2 className="w-4 h-4 animate-spin text-indigo-600" />
             <span className="text-xs font-semibold text-slate-600">Geocodificando CEPs via Google...</span>
           </div>
         )}
 
         {geocodeError && (
-          <div className="absolute top-32 left-4 z-[1000] bg-white/95 backdrop-blur-sm rounded-xl shadow-lg border border-amber-200 px-4 py-3 flex items-start gap-3 max-w-md shadow-sm">
+          <div className="absolute top-32 left-16 z-[1000] bg-white/95 backdrop-blur-sm rounded-xl shadow-lg border border-amber-200 px-4 py-3 flex items-start gap-3 max-w-md shadow-sm">
             <AlertCircle className="w-4 h-4 text-amber-500 mt-0.5 flex-shrink-0" />
             <p className="text-xs text-slate-600">{geocodeError}</p>
           </div>
         )}
 
-        <div className="absolute top-4 right-4 z-[1000] bg-white/95 backdrop-blur-sm rounded-xl shadow-lg border border-slate-200 w-80 max-h-[85vh] flex flex-col shadow-sm">
-          <div className="p-3 border-b border-slate-100 flex items-center justify-between">
-            <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">Todos os Imóveis</p>
-            <span className="text-[10px] font-bold text-slate-400">{properties.length} itens</span>
-          </div>
-          <div className="flex-1 overflow-y-auto p-2 space-y-1.5">
-            {properties.length === 0 ? (
-              <p className="text-xs text-slate-400 text-center py-4">Nenhum imóvel cadastrado</p>
-            ) : (
-              properties.map(p => {
-                const hasCoord = p.lat && p.lng;
-                return (
-                  <div key={p.id}
-                    className={`flex items-center gap-2 p-2 rounded-xl text-xs transition-colors border ${
-                      hasCoord
-                        ? 'border-green-100 bg-green-50/50'
-                        : 'border-slate-100 bg-white'
-                    }`}
-                  >
-                    <div className={`w-2 h-2 rounded-full flex-shrink-0 ${hasCoord ? 'bg-green-500' : 'bg-slate-300'}`} />
-                    <div className="flex-1 min-w-0">
-                      <p className="text-xs font-bold text-slate-800 truncate">{p.title}</p>
-                      <p className="text-[10px] text-slate-400 truncate">{p.neighborhood}, {p.city}</p>
+        <button
+          onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+          className={`absolute z-[1001] bg-white/95 backdrop-blur-sm rounded-l-xl shadow-lg border border-slate-200 border-r-0 px-1.5 py-3 text-slate-500 hover:text-slate-800 transition-all duration-300 ease-in-out ${
+            isSidebarOpen ? 'top-20 right-[21rem]' : 'top-4 right-4'
+          }`}
+        >
+          {isSidebarOpen ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
+        </button>
+
+        <div className={`absolute top-4 z-[1000] transition-transform duration-300 ease-in-out ${
+          isSidebarOpen ? 'right-4 translate-x-0' : 'right-4 translate-x-full'
+        }`}>
+          <div className="bg-white/95 backdrop-blur-sm rounded-xl shadow-lg border border-slate-200 w-80 max-h-[85vh] flex flex-col shadow-sm">
+            <div className="p-3 border-b border-slate-100 flex items-center justify-between">
+              <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">Todos os Imóveis</p>
+              <span className="text-[10px] font-bold text-slate-400">{properties.length} itens</span>
+            </div>
+            <div className="flex-1 overflow-y-auto p-2 space-y-1.5">
+              {properties.length === 0 ? (
+                <p className="text-xs text-slate-400 text-center py-4">Nenhum imóvel cadastrado</p>
+              ) : (
+                properties.map(p => {
+                  const hasCoord = p.lat && p.lng;
+                  return (
+                    <div key={p.id}
+                      onClick={() => navigate(generatePropertyUrl(p.id))}
+                      className="flex items-center gap-2 p-2 rounded-xl text-xs transition-colors border border-slate-100 bg-white hover:border-indigo-200 hover:bg-indigo-50/50 cursor-pointer group"
+                    >
+                      <div className={`w-2 h-2 rounded-full flex-shrink-0 ${hasCoord ? 'bg-green-500' : 'bg-slate-300'}`} />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs font-bold text-slate-800 truncate group-hover:text-indigo-600 transition-colors">{p.title}</p>
+                        <p className="text-[10px] text-slate-400 truncate">{p.neighborhood}, {p.city}</p>
+                      </div>
+                      <span className="text-[10px] text-indigo-600 font-semibold flex items-center gap-0.5 whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity">
+                        <Eye className="w-3 h-3" /> Ver
+                      </span>
                     </div>
-                    {hasCoord ? (
-                      <span className="text-[10px] text-green-600 font-semibold whitespace-nowrap">No mapa</span>
-                    ) : (
-                      <a href={`https://www.google.com/maps?q=${encodeURIComponent(p.cep)}`}
-                        target="_blank" rel="noopener noreferrer"
-                        className="text-[10px] text-indigo-600 font-semibold hover:text-indigo-800 flex items-center gap-0.5 whitespace-nowrap"
-                      >
-                        <ExternalLink className="w-3 h-3" /> Mapa
-                      </a>
-                    )}
-                  </div>
-                );
-              })
-            )}
+                  );
+                })
+              )}
+            </div>
           </div>
         </div>
 

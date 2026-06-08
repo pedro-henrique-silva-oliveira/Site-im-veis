@@ -1,7 +1,10 @@
-import { useState } from 'react';
-import { X, Check } from 'lucide-react';
+import { useState, useEffect, useCallback } from 'react';
+import { X, Check, Loader2 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { predefinedFeatures, geocodeCEP } from '../utils/formatters';
+import { randomId } from '../utils/localStorage';
+
+const API_BASE = import.meta.env.VITE_API_URL || '/api';
 
 function getInitialForm(editingProperty) {
   if (!editingProperty) {
@@ -34,11 +37,21 @@ function getInitialForm(editingProperty) {
 }
 
 export default function CRUDForm({ editingProperty, onClose }) {
-  const { properties, setProperties } = useApp();
+  const { properties, setProperties, adminToken } = useApp();
   const [form, setForm] = useState(() => getInitialForm(editingProperty));
   const [customFeature, setCustomFeature] = useState('');
   const [manualImageUrl, setManualImageUrl] = useState('');
+  const [submitting, setSubmitting] = useState(false);
   const isEditing = !!editingProperty;
+
+  const handleKeyDown = useCallback((e) => {
+    if (e.key === 'Escape') onClose();
+  }, [onClose]);
+
+  useEffect(() => {
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [handleKeyDown]);
 
   const handleImageUpload = (e) => {
     Array.from(e.target.files).forEach(file => {
@@ -79,43 +92,95 @@ export default function CRUDForm({ editingProperty, onClose }) {
     }
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     if (!form.title || !form.price || !form.neighborhood || !form.city || !form.area) {
       alert("Por favor, preencha os campos obrigatórios (Título, Preço, Bairro, Cidade, Área).");
       return;
     }
 
+    const id = editingProperty ? editingProperty.id : randomId();
+
     const payload = {
-      id: editingProperty ? editingProperty.id : crypto.randomUUID(),
-      title: form.title,
-      description: form.description || "Nenhuma descrição fornecida.",
-      type: form.type,
-      dealType: form.dealType,
-      price: parseFloat(form.price),
-      neighborhood: form.neighborhood,
-      city: form.city,
+      id,
+      titulo: form.title,
+      descricao: form.description || "",
+      tipo: form.type,
+      transacao: form.dealType,
+      preco: parseFloat(form.price),
+      bairro: form.neighborhood,
+      cidade: form.city,
       cep: form.cep,
       area: parseFloat(form.area),
-      bedrooms: parseInt(form.bedrooms) || 0,
+      quartos: parseInt(form.bedrooms) || 0,
       suites: parseInt(form.suites) || 0,
-      bathrooms: parseInt(form.bathrooms) || 0,
-      garages: parseInt(form.garages) || 0,
-      images: form.images.length > 0
-        ? form.images
-        : ["https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=800&q=80"],
-      features: form.features,
-      lat: form.lat ? parseFloat(form.lat) : undefined,
-      lng: form.lng ? parseFloat(form.lng) : undefined,
+      banheiros: parseInt(form.bathrooms) || 0,
+      vagas: parseInt(form.garages) || 0,
+      imagem: form.images.length > 0 ? form.images[0] : "",
+      destaque: false,
+      latitude: form.lat ? parseFloat(form.lat) : 0,
+      longitude: form.lng ? parseFloat(form.lng) : 0,
     };
 
-    if (isEditing) {
-      setProperties(properties.map(p => p.id === editingProperty.id ? payload : p));
-    } else {
-      setProperties([payload, ...properties]);
-    }
+    setSubmitting(true);
 
-    onClose();
+    try {
+      const url = isEditing
+        ? `${API_BASE}/imoveis/${editingProperty.id}`
+        : `${API_BASE}/imoveis`;
+
+      const token = adminToken || (() => { try { return localStorage.getItem('broker_admin_token'); } catch { return null; } })();
+      const res = await fetch(url, {
+        method: isEditing ? 'PUT' : 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify(payload),
+      });
+
+      if (!res.ok) {
+        const errData = await res.json().catch(() => null);
+        const msg = errData?.detail?.[0]?.msg || errData?.detail || `Erro do servidor: ${res.status}`;
+        throw new Error(msg);
+      }
+
+      const data = await res.json();
+
+      const mapped = {
+        id: data.id,
+        title: data.titulo,
+        description: data.descricao || '',
+        type: data.tipo,
+        dealType: data.transacao,
+        price: data.preco,
+        neighborhood: data.bairro,
+        city: data.cidade || '',
+        cep: data.cep || '',
+        area: data.area || 0,
+        bedrooms: data.quartos || 0,
+        suites: data.suites || 0,
+        bathrooms: data.banheiros || 0,
+        garages: data.vagas || 0,
+        images: data.imagem ? [data.imagem] : [],
+        features: form.features,
+        badgeType: null,
+        lat: data.latitude || null,
+        lng: data.longitude || null,
+      };
+
+      if (isEditing) {
+        setProperties(properties.map(p => p.id === id ? mapped : p));
+      } else {
+        setProperties([mapped, ...properties]);
+      }
+
+      onClose();
+    } catch (err) {
+      alert(`Erro ao salvar imóvel: ${err.message}`);
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const handleGeocodeByCEP = (e) => {
@@ -334,9 +399,10 @@ export default function CRUDForm({ editingProperty, onClose }) {
             className="px-5 py-2.5 border border-slate-200 hover:bg-slate-100 text-slate-600 hover:text-slate-900 font-bold text-sm rounded-xl transition-all">
             Cancelar
           </button>
-          <button type="submit" form="property-form"
-            className="px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-sm rounded-xl transition-all shadow shadow-indigo-100">
-            {isEditing ? 'Salvar Alterações' : 'Publicar Imóvel'}
+          <button type="submit" form="property-form" disabled={submitting}
+            className="px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-sm rounded-xl transition-all shadow shadow-indigo-100 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2">
+            {submitting && <Loader2 className="w-4 h-4 animate-spin" />}
+            {submitting ? 'Salvando...' : (isEditing ? 'Salvar Alterações' : 'Publicar Imóvel')}
           </button>
         </div>
       </div>

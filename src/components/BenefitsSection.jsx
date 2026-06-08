@@ -9,18 +9,18 @@ export default function BenefitsSection() {
             <div className="w-12 h-12 bg-white/10 rounded-full flex items-center justify-center text-indigo-300 mb-4">
               <Sparkles className="w-6 h-6" />
             </div>
-            <h4 className="text-lg font-bold mb-2">Imóveis Sob Medida</h4>
+            <h4 className="text-lg font-bold mb-2">Imóveis para Você</h4>
             <p className="text-indigo-200/80 text-sm max-w-xs">
-              Faço uma triagem profunda no mercado de acordo com suas exigências específicas de vida e investimento.
+              Do studio ao casarão. Busco no mercado a opção ideal para seu momento de vida e orçamento.
             </p>
           </div>
           <div className="flex flex-col items-center">
             <div className="w-12 h-12 bg-white/10 rounded-full flex items-center justify-center text-indigo-300 mb-4">
               <Phone className="w-6 h-6" />
             </div>
-            <h4 className="text-lg font-bold mb-2">Atendimento Direto</h4>
+            <h4 className="text-lg font-bold mb-2">Atendimento Pessoal</h4>
             <p className="text-indigo-200/80 text-sm max-w-xs">
-              Sem secretárias ou longos caminhos. Você fala diretamente comigo, o tomador de decisão, a qualquer hora.
+              Você fala direto comigo, sem roteiros prontos. Atendimento humano, transparente e sem pressão.
             </p>
           </div>
           <div className="flex flex-col items-center">

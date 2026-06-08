@@ -1,10 +1,14 @@
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { MapPin, Bed, Bath, Car, ArrowRight } from 'lucide-react';
+import { MapPin, Bed, Bath, Car, ArrowRight, ImageOff } from 'lucide-react';
 import { formatPrice, generatePropertyUrl } from '../utils/formatters';
 import FavoritesButton from './FavoritesButton';
 
+const FALLBACK_IMG = "https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=800&q=80";
+
 export default function PropertyCard({ property }) {
   const navigate = useNavigate();
+  const [imgError, setImgError] = useState(false);
 
   return (
     <div
@@ -12,13 +16,20 @@ export default function PropertyCard({ property }) {
       onClick={() => navigate(generatePropertyUrl(property.id))}
     >
       <div className="relative h-60 w-full overflow-hidden bg-slate-100">
-        <img
-          src={property.images?.[0] || "https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=800&q=80"}
-          alt={property.title}
-          className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
-        />
+        {imgError ? (
+          <div className="w-full h-full flex items-center justify-center bg-slate-200">
+            <ImageOff className="w-12 h-12 text-slate-400" />
+          </div>
+        ) : (
+          <img
+            src={property.images?.[0] || FALLBACK_IMG}
+            alt={property.title}
+            onError={() => setImgError(true)}
+            className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+          />
+        )}
 
-        <div className="absolute top-4 left-4 flex gap-1.5">
+        <div className="absolute top-4 left-4 flex flex-wrap gap-1.5">
           <span className={`px-3 py-1.5 text-xs font-extrabold rounded-lg tracking-wide uppercase shadow ${
             property.dealType === 'venda'
               ? 'bg-indigo-600 text-white'
@@ -31,8 +42,22 @@ export default function PropertyCard({ property }) {
           </span>
         </div>
 
+        {property.badgeType && (
+          <div className="absolute top-16 left-4">
+            <span className={`inline-block px-3 py-1 text-[10px] font-black uppercase tracking-widest rounded-md shadow-lg ${
+              property.badgeType === 'luxury'
+                ? 'bg-gradient-to-r from-amber-700 to-amber-500 text-white'
+                : property.badgeType === 'opportunity'
+                ? 'bg-emerald-500 text-white'
+                : 'bg-indigo-500 text-white'
+            }`}>
+              {property.badgeType === 'luxury' ? 'Alto Padrão' : property.badgeType === 'opportunity' ? 'Oportunidade' : 'Lançamento'}
+            </span>
+          </div>
+        )}
+
         <div className="absolute top-4 right-4">
-          <FavoritesButton propertyId={property.id} iconOnly={true} className="bg-white/90 hover:bg-white shadow" size="w-4.5 h-4.5" />
+          <FavoritesButton propertyId={property.id} iconOnly={true} className="bg-white/90 hover:bg-white shadow" size="w-5 h-5" />
         </div>
 
         <div className="absolute bottom-4 right-4 bg-slate-950/75 backdrop-blur-sm text-white px-2.5 py-1 text-xs font-bold rounded">

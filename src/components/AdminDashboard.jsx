@@ -1,24 +1,43 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Home, DollarSign, Building, PlusCircle, Eye, Edit, Trash, Phone, Calendar, Mail, User } from 'lucide-react';
+import { Home, DollarSign, Building, PlusCircle, Eye, Edit, Trash, Phone, Calendar, Mail, User, AlertCircle } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { formatPrice, generatePropertyUrl } from '../utils/formatters';
 import CRUDForm from './CRUDForm';
 
+const API_BASE = import.meta.env.VITE_API_URL || '/api';
+
 export default function AdminDashboard() {
-  const { properties, setProperties, leads, visits } = useApp();
+  const { properties, setProperties, leads, visits, adminToken } = useApp();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('properties');
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingProperty, setEditingProperty] = useState(null);
+  const [deleting, setDeleting] = useState(null);
+  const [actionError, setActionError] = useState(null);
 
   const totalImoveis = properties.length;
   const totalVendas = properties.filter(p => p.dealType === 'venda').length;
   const totalLocacao = properties.filter(p => p.dealType === 'aluguel').length;
 
-  const handleDelete = (id) => {
-    if (window.confirm("Tem certeza que deseja excluir este imóvel permanentemente?")) {
+  const handleDelete = async (id) => {
+    if (!window.confirm("Tem certeza que deseja excluir este imóvel permanentemente?")) return;
+    setDeleting(id);
+    setActionError(null);
+    try {
+      const res = await fetch(`${API_BASE}/imoveis/${id}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${adminToken}` },
+      });
+      if (!res.ok) {
+        const errData = await res.json().catch(() => null);
+        throw new Error(errData?.detail || `Erro do servidor: ${res.status}`);
+      }
       setProperties(properties.filter(p => p.id !== id));
+    } catch (err) {
+      setActionError(err.message);
+    } finally {
+      setDeleting(null);
     }
   };
 
@@ -59,6 +78,17 @@ export default function AdminDashboard() {
           </button>
         </div>
       </div>
+
+      {actionError && (
+        <div className="mb-6 flex items-start gap-3 bg-red-50 border border-red-200 rounded-2xl p-4 text-sm">
+          <AlertCircle className="w-5 h-5 text-red-500 mt-0.5 flex-shrink-0" />
+          <div className="flex-1">
+            <p className="font-bold text-red-700">Erro na operação</p>
+            <p className="text-red-600 text-xs mt-0.5">{actionError}</p>
+          </div>
+          <button onClick={() => setActionError(null)} className="text-red-400 hover:text-red-600 font-bold text-xs">Fechar</button>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 mb-8">
         <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between">
@@ -131,7 +161,7 @@ export default function AdminDashboard() {
                     <td className="py-4 px-6">
                       <div className="flex items-center gap-3">
                         <div className="w-14 h-10 rounded-lg overflow-hidden flex-shrink-0 bg-slate-100 border border-slate-200">
-                          <img src={prop.images?.[0] || "https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=100&q=80"} alt="" className="w-full h-full object-cover" />
+                          <img src={prop.images?.[0] || "https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=100&q=80"} alt="" onError={(e) => { e.target.style.display = 'none'; }} className="w-full h-full object-cover" />
                         </div>
                         <div>
                           <span className="font-extrabold text-slate-900 line-clamp-1">{prop.title}</span>
@@ -158,15 +188,16 @@ export default function AdminDashboard() {
                       <div className="flex items-center justify-end gap-2">
                         <button onClick={() => navigate(generatePropertyUrl(prop.id))} title="Visualizar"
                           className="p-1.5 rounded-lg text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 transition-colors">
-                          <Eye className="w-4.5 h-4.5" />
+                          <Eye className="w-5 h-5" />
                         </button>
                         <button onClick={() => handleOpenEdit(prop)} title="Editar"
                           className="p-1.5 rounded-lg text-slate-400 hover:text-amber-600 hover:bg-amber-50 transition-colors">
-                          <Edit className="w-4.5 h-4.5" />
+                          <Edit className="w-5 h-5" />
                         </button>
-                        <button onClick={() => handleDelete(prop.id)} title="Excluir"
-                          className="p-1.5 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 transition-colors">
-                          <Trash className="w-4.5 h-4.5" />
+                        <button onClick={() => handleDelete(prop.id)} disabled={deleting === prop.id}
+                          title="Excluir"
+                          className="p-1.5 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
+                          <Trash className={`w-5 h-5 ${deleting === prop.id ? 'animate-pulse' : ''}`} />
                         </button>
                       </div>
                     </td>
@@ -199,16 +230,16 @@ export default function AdminDashboard() {
                   <div key={lead.id} className="bg-slate-50 rounded-xl p-4 border border-slate-200">
                     <div className="flex items-start justify-between">
                       <div>
-                        <strong className="text-slate-900">{lead.name}</strong>
+                        <strong className="text-slate-900">{lead.nome}</strong>
                         <div className="flex items-center gap-3 text-xs text-slate-500 mt-1">
-                          <span className="flex items-center gap-1"><Phone className="w-3 h-3" /> {lead.phone}</span>
+                          <span className="flex items-center gap-1"><Phone className="w-3 h-3" /> {lead.telefone}</span>
                           {lead.email && <span className="flex items-center gap-1"><Mail className="w-3 h-3" /> {lead.email}</span>}
                         </div>
                       </div>
                       <span className="text-[10px] text-slate-400">{new Date(lead.createdAt).toLocaleDateString('pt-BR')}</span>
                     </div>
-                    <p className="text-xs text-slate-600 mt-2">Imóvel: <strong>{lead.propertyTitle}</strong></p>
-                    {lead.message && <p className="text-xs text-slate-500 mt-1 bg-white p-2 rounded border border-slate-100">"{lead.message}"</p>}
+                    <p className="text-xs text-slate-600 mt-2">Imóvel ID: <strong>{lead.id_imovel}</strong></p>
+                    {lead.mensagem && <p className="text-xs text-slate-500 mt-1 bg-white p-2 rounded border border-slate-100">"{lead.mensagem}"</p>}
                   </div>
                 ))}
               </div>

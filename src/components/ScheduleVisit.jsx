@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Calendar, Clock } from 'lucide-react';
 import { useApp } from '../context/AppContext';
+import { randomId } from '../utils/localStorage';
 
 export default function ScheduleVisit({ property }) {
   const { addVisit } = useApp();
@@ -14,7 +15,7 @@ export default function ScheduleVisit({ property }) {
     if (!form.name || !form.phone || !form.date || !form.time) return;
 
     addVisit({
-      id: crypto.randomUUID(),
+      id: randomId(),
       propertyId: property.id,
       propertyTitle: property.title,
       ...form,

@@ -9,17 +9,19 @@ export default function ContactForm({ property }) {
   const [form, setForm] = useState(defaultForm);
   const [sent, setSent] = useState(false);
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     if (!form.name || !form.phone) return;
 
-    addLead({
-      id: crypto.randomUUID(),
-      propertyId: property.id,
-      propertyTitle: property.title,
-      ...form,
-      createdAt: new Date().toISOString(),
-    });
+    try {
+      await addLead({
+        propertyId: property.id,
+        ...form,
+      });
+    } catch {
+      alert('Erro ao enviar mensagem. Tente novamente.');
+      return;
+    }
 
     const whatsappMessage = encodeURIComponent(
       `Olá! Meu nome é ${form.name}. Vi o imóvel "${property.title}" e gostaria de mais informações.\n\nTelefone: ${form.phone}\nE-mail: ${form.email || 'não informado'}\n\nMensagem: ${form.message || 'Gostaria de saber mais detalhes.'}`

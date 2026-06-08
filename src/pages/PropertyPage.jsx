@@ -1,7 +1,7 @@
 import { useParams, Link } from 'react-router-dom';
 import { useState } from 'react';
 import { Helmet } from 'react-helmet-async';
-import { MapPin, Phone, Check, ChevronLeft, ChevronRight, ArrowLeft } from 'lucide-react';
+import { MapPin, Phone, Check, ChevronLeft, ChevronRight, ArrowLeft, ImageOff } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { formatPrice } from '../utils/formatters';
 import ImageLightbox from '../components/ImageLightbox';
@@ -16,6 +16,8 @@ export default function PropertyPage() {
   const property = properties.find(p => p.id === id);
   const [activeImageIndex, setActiveImageIndex] = useState(0);
   const [lightboxOpen, setLightboxOpen] = useState(false);
+  const [mainImgError, setMainImgError] = useState(false);
+  const [thumbErrors, setThumbErrors] = useState([]);
 
   if (!property) {
     return (
@@ -51,9 +53,9 @@ export default function PropertyPage() {
   return (
     <>
       <Helmet>
-        <title>{property.title} - Pedro H. Corretor</title>
-        <meta name="description" content={property.description?.slice(0, 160) || `Imóvel em ${property.neighborhood}, ${property.city} - ${formatPrice(property.price, property.dealType)}`} />
-        <meta property="og:title" content={`${property.title} - Pedro H. Corretor`} />
+        <title>{property.title} — Pedro H. Corretor</title>
+        <meta name="description" content={property.description?.slice(0, 160) || `${property.title} em ${property.neighborhood}, ${property.city} — ${formatPrice(property.price, property.dealType)}. Fale comigo e encontre o imóvel ideal para o seu momento.`} />
+        <meta property="og:title" content={`${property.title} — Pedro H. Corretor`} />
         <meta property="og:description" content={property.description?.slice(0, 200) || `Imóvel em ${property.neighborhood}, ${property.city}`} />
         <meta property="og:image" content={images[0]} />
         <meta property="og:url" content={window.location.href} />
@@ -70,7 +72,13 @@ export default function PropertyPage() {
           <div className="lg:col-span-7 space-y-4">
             <div className="relative aspect-video rounded-2xl overflow-hidden bg-slate-100 border border-slate-200 group cursor-pointer"
               onClick={() => setLightboxOpen(true)}>
-              <img src={images[activeImageIndex]} alt={property.title} className="w-full h-full object-cover" />
+              {mainImgError ? (
+                <div className="w-full h-full flex items-center justify-center bg-slate-200">
+                  <ImageOff className="w-16 h-16 text-slate-400" />
+                </div>
+              ) : (
+                <img src={images[activeImageIndex]} alt={property.title} onError={() => setMainImgError(true)} className="w-full h-full object-cover" />
+              )}
               {images.length > 1 && (
                 <>
                   <button onClick={(e) => { e.stopPropagation(); setActiveImageIndex(prev => prev === 0 ? images.length - 1 : prev - 1); }}
@@ -102,7 +110,13 @@ export default function PropertyPage() {
                 {images.map((img, idx) => (
                   <button key={idx} onClick={() => setActiveImageIndex(idx)}
                     className={`w-20 h-14 rounded-lg overflow-hidden border-2 flex-shrink-0 transition-all ${activeImageIndex === idx ? 'border-indigo-600 scale-95 shadow' : 'border-transparent'}`}>
-                    <img src={img} alt="" className="w-full h-full object-cover" />
+                    {thumbErrors.includes(idx) ? (
+                      <div className="w-full h-full flex items-center justify-center bg-slate-200">
+                        <ImageOff className="w-4 h-4 text-slate-400" />
+                      </div>
+                    ) : (
+                      <img src={img} alt="" onError={() => setThumbErrors(prev => [...prev, idx])} className="w-full h-full object-cover" />
+                    )}
                   </button>
                 ))}
               </div>

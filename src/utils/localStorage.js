@@ -12,6 +12,14 @@ export function saveToLocalStorage(key, value) {
   }
 }
 
+export function randomId() {
+  try {
+    return crypto.randomUUID();
+  } catch {
+    return `${Date.now()}-${Math.random().toString(36).slice(2, 11)}`;
+  }
+}
+
 export function loadFromLocalStorage(key, fallback = null) {
   try {
     const item = localStorage.getItem(key);
